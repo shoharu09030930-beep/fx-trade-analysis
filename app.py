@@ -22,17 +22,27 @@ def load_and_process_data(files):
     # 1. 各ファイルを読み込む
     for file in files:
         try:
+            # ファイル名と読み込み対象の特定
+            if isinstance(file, str):
+                filename = file
+                # パス指定の場合はそのままread_csvに渡せる
+                target = file 
+            else:
+                filename = file.name
+                target = file
+
             # デフォルト(UTF-8)で試す
             try:
-                df_temp = pd.read_csv(file, dtype=str)
+                df_temp = pd.read_csv(target, dtype=str)
             except UnicodeDecodeError:
                 # 失敗したらShift-JISで再試行
-                file.seek(0)
-                df_temp = pd.read_csv(file, dtype=str, encoding='cp932')
+                if not isinstance(file, str):
+                    file.seek(0) # UploadedFileの場合はポインタを戻す
+                df_temp = pd.read_csv(target, dtype=str, encoding='cp932')
             
             df_list.append(df_temp)
         except Exception as e:
-            st.error(f"ファイル {file.name} の読み込み中にエラーが発生しました: {e}")
+            st.error(f"ファイル {filename} の読み込み中にエラーが発生しました: {e}")
             return None
 
     if not df_list:
@@ -184,8 +194,19 @@ def main():
         accept_multiple_files=True
     )
 
+    target_files = []
     if uploaded_files:
-        df = load_and_process_data(uploaded_files)
+        target_files = uploaded_files
+    else:
+        # アップロードがない場合はローカル(GitHubリポジトリ内)のCSVを探す
+        import glob
+        local_files = glob.glob("*.csv")
+        if local_files:
+            st.sidebar.info(f"保存済みファイルを使用します:\n{local_files}")
+            target_files = local_files
+
+    if target_files:
+        df = load_and_process_data(target_files)
         
         if df is not None and not df.empty:
             # データ期間の表示
