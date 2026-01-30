@@ -58,8 +58,12 @@ def load_and_process_data(files):
             df_raw['数量'] = pd.to_numeric(df_raw['数量'].str.replace(',', ''), errors='coerce').fillna(0)
         
         # 日時変換
+        # 様々なフォーマットに対応できるよう mixed を指定し、エラー時は NaT にする
         if '約定日時' in df_raw.columns:
-            df_raw['約定日時'] = pd.to_datetime(df_raw['約定日時'])
+            df_raw['約定日時'] = pd.to_datetime(df_raw['約定日時'], errors='coerce', format='mixed')
+            # 変換できなかった行（NaT）があれば除外するなどの処理が必要だが、今回はそのまま進める
+            # 念のためNaTの行を削除する場合は以下
+            # df_raw.dropna(subset=['約定日時'], inplace=True)
 
         # 5. 新規と決済に分割
         df_entry = df_raw[df_raw['区分'] == '新規'].copy()
